@@ -36,6 +36,10 @@ export default function Gallery() {
   const [accent, setAccent] = useState<Accent>(ACCENTS[0]);
   const [enabled, setEnabled] = useState(true);
   const [value, setValue] = useState("deploy --prod");
+  const [last, setLast] = useState("Pulsa un botón o un badge para verlo en acción.");
+  const [selectedBadge, setSelectedBadge] = useState<number | null>(null);
+
+  const press = (msg: string) => setLast(msg);
 
   return (
     <main className="max-w-6xl mx-auto px-5 py-10">
@@ -66,19 +70,41 @@ export default function Gallery() {
         </div>
       </header>
 
+      <div
+        className="mb-6 rounded-lg border border-white/10 bg-black/30 px-4 py-2.5 text-sm font-mono"
+        role="status"
+        aria-live="polite"
+      >
+        <span className="opacity-40">➜</span> <span style={{ color: accent.hex }}>{last}</span>
+      </div>
+
       <div className="grid md:grid-cols-2 gap-6">
         <Section title="Botones" accent={accent.hex}>
           <div className="flex flex-wrap gap-3">
-            <button style={{ background: accent.hex, color: "#09010d", boxShadow: `0 0 18px ${accent.glow}` }} className="rounded-lg px-5 py-2.5 font-bold text-sm">
+            <button
+              onClick={() => press('Botón «Acción principal» pulsado')}
+              style={{ background: accent.hex, color: "#09010d", boxShadow: `0 0 18px ${accent.glow}` }}
+              className="rounded-lg px-5 py-2.5 font-bold text-sm transition-transform active:scale-95 cursor-pointer"
+            >
               Acción principal
             </button>
-            <button style={{ borderColor: accent.hex, color: accent.hex }} className="rounded-lg border px-5 py-2.5 font-bold text-sm">
+            <button
+              onClick={() => press('Botón «Outline» pulsado')}
+              style={{ borderColor: accent.hex, color: accent.hex }}
+              className="rounded-lg border px-5 py-2.5 font-bold text-sm transition-transform hover:bg-white/5 active:scale-95 cursor-pointer"
+            >
               Outline
             </button>
-            <button className="rounded-lg border border-white/15 px-5 py-2.5 font-bold text-sm text-white/70">
+            <button
+              onClick={() => press('Botón «Ghost» pulsado')}
+              className="rounded-lg border border-white/15 px-5 py-2.5 font-bold text-sm text-white/70 transition-transform hover:bg-white/5 hover:text-white active:scale-95 cursor-pointer"
+            >
               Ghost
             </button>
-            <button className="rounded-lg px-5 py-2.5 font-bold text-sm bg-red-500/15 text-red-300 border border-red-400/30">
+            <button
+              onClick={() => press('⚠ Botón «Destructivo» pulsado (acción no ejecutada en la demo)')}
+              className="rounded-lg px-5 py-2.5 font-bold text-sm bg-red-500/15 text-red-300 border border-red-400/30 transition-transform hover:bg-red-500/25 active:scale-95 cursor-pointer"
+            >
               Destructivo
             </button>
           </div>
@@ -86,11 +112,56 @@ export default function Gallery() {
 
         <Section title="Badges & estados" accent={accent.hex}>
           <div className="flex flex-wrap items-center gap-2">
-            <Badge style={{ color: accent.hex, background: accent.glow }}>Live</Badge>
-            <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-400/30">Operativo</Badge>
-            <Badge className="bg-amber-500/15 text-amber-300 border-amber-400/30">Degradado</Badge>
-            <Badge className="bg-red-500/15 text-red-300 border-red-400/30">Caído</Badge>
-            <Badge className="bg-white/5 text-white/50 border-white/15">beta</Badge>
+            <Badge
+              active={selectedBadge === 0}
+              onClick={() => {
+                setSelectedBadge((s) => (s === 0 ? null : 0));
+                press(selectedBadge === 0 ? 'Badge «Live» deseleccionado' : 'Badge «Live» seleccionado');
+              }}
+              style={{ color: accent.hex, background: accent.glow }}
+            >
+              Live
+            </Badge>
+            <Badge
+              active={selectedBadge === 1}
+              onClick={() => {
+                setSelectedBadge((s) => (s === 1 ? null : 1));
+                press(selectedBadge === 1 ? 'Badge «Operativo» deseleccionado' : 'Badge «Operativo» seleccionado');
+              }}
+              className="bg-emerald-500/15 text-emerald-300 border-emerald-400/30"
+            >
+              Operativo
+            </Badge>
+            <Badge
+              active={selectedBadge === 2}
+              onClick={() => {
+                setSelectedBadge((s) => (s === 2 ? null : 2));
+                press(selectedBadge === 2 ? 'Badge «Degradado» deseleccionado' : 'Badge «Degradado» seleccionado');
+              }}
+              className="bg-amber-500/15 text-amber-300 border-amber-400/30"
+            >
+              Degradado
+            </Badge>
+            <Badge
+              active={selectedBadge === 3}
+              onClick={() => {
+                setSelectedBadge((s) => (s === 3 ? null : 3));
+                press(selectedBadge === 3 ? 'Badge «Caído» deseleccionado' : 'Badge «Caído» seleccionado');
+              }}
+              className="bg-red-500/15 text-red-300 border-red-400/30"
+            >
+              Caído
+            </Badge>
+            <Badge
+              active={selectedBadge === 4}
+              onClick={() => {
+                setSelectedBadge((s) => (s === 4 ? null : 4));
+                press(selectedBadge === 4 ? 'Badge «beta» deseleccionado' : 'Badge «beta» seleccionado');
+              }}
+              className="bg-white/5 text-white/50 border-white/15"
+            >
+              beta
+            </Badge>
           </div>
         </Section>
 
@@ -220,10 +291,31 @@ function Section({
   );
 }
 
-function Badge({ className = "", style, children }: { className?: string; style?: React.CSSProperties; children: React.ReactNode }) {
+function Badge({
+  className = "",
+  style,
+  children,
+  onClick,
+  active,
+}: {
+  className?: string;
+  style?: React.CSSProperties;
+  children: React.ReactNode;
+  onClick?: () => void;
+  active?: boolean;
+}) {
+  const interactive = Boolean(onClick);
   return (
-    <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold ${className}`} style={style}>
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold transition-transform ${interactive ? "cursor-pointer active:scale-95" : ""} ${
+        active ? "ring-2 ring-white/80 scale-105" : ""
+      } ${className}`}
+      style={style}
+    >
       {children}
-    </span>
+    </button>
   );
 }
