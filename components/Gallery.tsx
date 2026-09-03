@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type Accent = { name: string; hex: string; glow: string };
 
@@ -11,13 +11,35 @@ const ACCENTS: Accent[] = [
   { name: "Ámbar", hex: "#fbbf24", glow: "rgba(251,191,36,0.18)" },
 ];
 
-const ROWS = [
-  { metric: "requests/s", value: "48 212", delta: "+12.4%", up: true, spark: [22, 28, 26, 35, 40, 44, 52, 60] },
-  { metric: "p95 latency", value: "142 ms", delta: "-8.1%", up: true, spark: [60, 55, 58, 48, 44, 40, 36, 30] },
-  { metric: "error rate", value: "0.42%", delta: "+0.9%", up: false, spark: [10, 12, 11, 15, 13, 12, 14, 13] },
-  { metric: "active users", value: "9 871", delta: "+4.2%", up: true, spark: [30, 34, 33, 40, 44, 52, 58, 66] },
-  { metric: "cost/hora", value: "$212", delta: "-3.0%", up: true, spark: [40, 38, 39, 35, 34, 32, 30, 28] },
+interface LiveRow {
+  metric: string;
+  /** 1 => subir es bueno; -1 => bajar es bueno */
+  goodSign: 1 | -1;
+  start: number;
+  amp: number;
+  drift: number;
+  min: number;
+  fmt: (v: number) => string;
+  hist: number[];
+}
+
+const ROW_DEFS: Omit<LiveRow, "hist">[] = [
+  { metric: "requests/s", goodSign: 1, start: 48200, amp: 1600, drift: 60, min: 0, fmt: (v) => v.toLocaleString("es-CL") },
+  { metric: "p95 latency", goodSign: -1, start: 142, amp: 6, drift: -0.4, min: 40, fmt: (v) => `${v.toFixed(0)} ms` },
+  { metric: "error rate", goodSign: -1, start: 0.42, amp: 0.08, drift: -0.003, min: 0.01, fmt: (v) => `${v.toFixed(3)}%` },
+  { metric: "active users", goodSign: 1, start: 9871, amp: 300, drift: 40, min: 0, fmt: (v) => v.toLocaleString("es-CL") },
+  { metric: "cost/hora", goodSign: -1, start: 212, amp: 7, drift: -0.3, min: 10, fmt: (v) => `$${v.toFixed(0)}` },
 ];
+
+function seedHist(def: Omit<LiveRow, "hist">, n = 26): number[] {
+  const out: number[] = [];
+  let v = def.start;
+  for (let i = 0; i < n; i++) {
+    out.push(v);
+    v = Math.max(def.min, v + def.drift + (Math.random() - 0.5) * def.amp * 0.9);
+  }
+  return out;
+}
 
 function spark(values: number[], w: number, h: number): string {
   const min = Math.min(...values);
@@ -38,6 +60,20 @@ export default function Gallery() {
   const [value, setValue] = useState("deploy --prod");
   const [last, setLast] = useState("Pulsa un botón o un badge para verlo en acción.");
   const [selectedBadge, setSelectedBadge] = useState<number | null>(null);
+  const [live, setLive] = useState<LiveRow[]>(() => ROW_DEFS.map((d) => ({ ...d, hist: seedHist(d) })));
+
+  useEffect(() => {
+    const iv = setInterval(() => {
+      setLive((prev) =>
+        prev.map((r) => {
+          const last = r.hist[r.hist.length - 1];
+          const next = Math.max(r.min, last + r.drift + (Math.random() - 0.5) * r.amp);
+          return { ...r, hist: [...r.hist.slice(-39), next] };
+        })
+      );
+    }, 2000);
+    return () => clearInterval(iv);
+  }, []);
 
   const press = (msg: string) => setLast(msg);
 
@@ -223,20 +259,30 @@ export default function Gallery() {
               </tr>
             </thead>
             <tbody>
-              {ROWS.map((r) => (
-                <tr key={r.metric} className="border-b border-white/5">
-                  <td className="py-3 pr-4 text-white/70">{r.metric}</td>
-                  <td className="py-3 pr-4 font-bold">{r.value}</td>
-                  <td className="py-3 pr-4">
-                    <span className={r.up ? "text-emerald-300" : "text-red-300"}>{r.delta}</span>
-                  </td>
-                  <td className="py-3">
-                    <svg viewBox="0 0 140 26" className="w-36 h-7">
-                      <path d={spark(r.spark, 140, 26)} fill="none" stroke={accent.hex} strokeWidth={1.8} />
-                    </svg>
-                  </td>
-                </tr>
-              ))}
+              {live.map((r) => {
+                const first = r.hist[0];
+                const last = r.hist[r.hist.length - 1];
+                const deltaPct = first !== 0 ? ((last - first) / Math.abs(first)) * 100 : 0;
+                const good = (last - first) * r.goodSign < 0;
+                const sign = deltaPct > 0 ? "+" : deltaPct < 0 ? "-" : "";
+                return (
+                  <tr key={r.metric} className="border-b border-white/5">
+                    <td className="py-3 pr-4 text-white/70">{r.metric}</td>
+                    <td className="py-3 pr-4 font-bold tabular-nums">{r.fmt(last)}</td>
+                    <td className="py-3 pr-4">
+                      <span className={good ? "text-emerald-300" : "text-red-300"}>
+                        {sign}
+                        {Math.abs(deltaPct).toFixed(1)}%
+                      </span>
+                    </td>
+                    <td className="py-3">
+                      <svg viewBox="0 0 140 26" className="w-36 h-7">
+                        <path d={spark(r.hist, 140, 26)} fill="none" stroke={accent.hex} strokeWidth={1.8} />
+                      </svg>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
